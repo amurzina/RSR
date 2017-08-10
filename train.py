@@ -119,6 +119,7 @@ model.fit(X, Y, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, sh
 
 # test data
 test = pd.read_csv('GT-final_test.csv', sep=',', error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
+test = test[0:300]
 
 X_test = []
 y_test = []
