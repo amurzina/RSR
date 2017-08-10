@@ -112,7 +112,7 @@ sgd = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
 batch_size = 32
-nb_epoch = 1
+nb_epoch = 20
 
 model.fit(X, Y, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, shuffle=True,
           callbacks=[LearningRateScheduler(lr_schedule), ModelCheckpoint('model.h5', save_best_only=True)])
