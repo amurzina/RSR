@@ -74,13 +74,13 @@ def cnn_model():
 
 
 try:
-    with h5py.File('X.h5') as hf:
+    with  h5py.File('X.h5') as hf: 
         X, Y = hf['imgs'][:], hf['labels'][:]
     print("Loaded images from X.h5")
-
-except (IOError, OSError, KeyError):
+    
+except (IOError,OSError, KeyError):  
     print("Error in reading X.h5. Processing all images...")
-    root_dir = 'TrainIJCNN2013/'
+    root_dir = 'GTSRB/Final_Training/Images/'
     imgs = []
     labels = []
 
@@ -88,12 +88,13 @@ except (IOError, OSError, KeyError):
     np.random.shuffle(all_img_paths)
     for img_path in all_img_paths:
         try:
-            img = preprocess_img(skimage.io.imread(img_path))
+            img = preprocess_img(io.imread(img_path))
             label = get_class(img_path)
             imgs.append(img)
             labels.append(label)
 
-            if len(imgs) % 1000 == 0 : print("Processed {}/{}".format(len(imgs), len(all_img_paths)))
+            if len(imgs)%1000 == 0: 
+                print("Processed {}/{}".format(len(imgs), len(all_img_paths)))
         except (IOError, OSError):
             print('missed', img_path)
             pass
@@ -101,12 +102,13 @@ except (IOError, OSError, KeyError):
     X = np.array(imgs, dtype='float32')
     Y = np.eye(NUM_CLASSES, dtype='uint8')[labels]
 
-    with h5py.File('X.h5', 'w') as hf:
+    with h5py.File('X.h5','w') as hf:
         hf.create_dataset('imgs', data=X)
         hf.create_dataset('labels', data=Y)
 
 model = cnn_model()
 
+#train data
 lr = 0.01
 sgd = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
@@ -118,22 +120,24 @@ model.fit(X, Y, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, sh
           callbacks=[LearningRateScheduler(lr_schedule), ModelCheckpoint('model.h5', save_best_only=True)])
 
 # test data
-test = pd.read_csv('GT-final_test.csv', sep=',', error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
-test = test[0:300]
+test = pd.read_csv('GT-final_test.csv', sep=',',error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
 
-X_test = []
-y_test = []
-i = 0
-for file_name, class_id in zip(list(test['Filename']), list(test['ClassId'])):
-    img_path = os.path.join('TestIJCNN2013/', file_name + '.ppm')
-    X_test.append(preprocess_img(skimage.io.imread(img_path)))
-    y_test.append(class_id)
+try:
 
-X_test = np.array(X_test)
-y_test = np.array(y_test)
+    X_test = []
+    y_test = []
 
-y_pred = model.predict_classes(X_test)
-acc = np.sum(y_pred == y_test)/np.size(y_pred)
-print("Test accuracy = {}".format(acc))
+    for file_name, class_id  in zip(list(test['Filename']), list(test['ClassId'])):
+        img_path = os.path.join('GTSRB/Final_Test/Images/', file_name + '.ppm')
+        X_test.append(preprocess_img(io.imread(img_path)))
+        y_test.append(class_id)
+    
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
 
-gc.collect()
+    y_pred = model.predict_classes(X_test)
+    acc = np.sum(y_pred == y_test)/np.size(y_pred)
+    print("Test accuracy = {}".format(acc))
+finally:
+    print('FINISHED')
+
