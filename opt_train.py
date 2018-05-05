@@ -150,7 +150,7 @@ def get_test_data():
         x_test.append(preprocess_img(io.imread(img_path)))
         y_test.append(class_id)
 
-    x_test = np.array(X_test)
+    x_test = np.array(x_test)
     y_test = np.array(y_test)
 
     return x_test, y_test
