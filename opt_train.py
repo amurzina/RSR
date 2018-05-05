@@ -26,39 +26,10 @@ from keras import backend as K
 
 K.set_image_data_format('channels_first')
 
-NUM_CLASSES = 43
-IMG_SIZE = 48
-
-
-def preprocess_img(img):
-    hsv = color.rgb2hsv(img)
-    hsv[:, :, 2] = exposure.equalize_hist(hsv[:, :, 2])
-    img = color.hsv2rgb(hsv)
-
-    min_side = min(img.shape[:-1])
-    centre = img.shape[0] // 2, img.shape[1] // 2
-    img = img[centre[0] - min_side // 2:centre[0] + min_side // 2,
-          centre[1] - min_side // 2:centre[1] + min_side // 2,
-          :]
-
-    img = transform.resize(img, (IMG_SIZE, IMG_SIZE))
-    img = np.rollaxis(img, -1)
-
-    return img
-
-
-def get_class(img_path):
-    return int(img_path.split('/')[-2])
-
-
-def lr_schedule(epoch):
-    return lr * (0.1 ** int(epoch / 10))
-
-
 def cnn_model():
     model = Sequential()
 
-    model.add(Conv2D(32, (3, 3), padding='same', input_shape=(3, IMG_SIZE, IMG_SIZE), activation='relu'))
+    model.add(Conv2D(32, (3, 3), padding='same', input_shape=(3, 48, 48), activation='relu'))
     model.add(Conv2D(32, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout({{uniform(0,1)}}))
@@ -76,10 +47,14 @@ def cnn_model():
     model.add(Flatten())
     model.add(Dense(512, activation='relu'))
     model.add(Dropout({{uniform(0,1)}}))
-    model.add(Dense(NUM_CLASSES, activation='softmax'))
+    model.add(Dense(43, activation='softmax'))
     return model
 
 def create_model(x_train, y_train, x_test, y_test):
+
+    def lr_schedule(epoch):
+        return lr * (0.1 ** int(epoch / 10))
+
    start = time.time()
    model = cnn_model()
    lr = 0.01
@@ -101,6 +76,26 @@ def create_model(x_train, y_train, x_test, y_test):
 
 
 def get_data():
+
+    def preprocess_img(img):
+        hsv = color.rgb2hsv(img)
+        hsv[:, :, 2] = exposure.equalize_hist(hsv[:, :, 2])
+        img = color.hsv2rgb(hsv)
+
+        min_side = min(img.shape[:-1])
+        centre = img.shape[0] // 2, img.shape[1] // 2
+        img = img[centre[0] - min_side // 2:centre[0] + min_side // 2,
+              centre[1] - min_side // 2:centre[1] + min_side // 2,
+              :]
+
+        img = transform.resize(img, (48, 48))
+        img = np.rollaxis(img, -1)
+
+        return img
+
+    def get_class(img_path):
+        return int(img_path.split('/')[-2])
+
     start = time.time()
     try:
         with  h5py.File('X.h5') as hf:
@@ -129,7 +124,7 @@ def get_data():
                 pass
 
         x_train = np.array(imgs, dtype='float32')
-        y_train = np.eye(NUM_CLASSES, dtype='uint8')[labels]
+        y_train = np.eye(43, dtype='uint8')[labels]
 
         with h5py.File('X.h5','w') as hf:
             hf.create_dataset('imgs', data=X)
