@@ -78,85 +78,89 @@ def cnn_model():
     return model
 
 def create_model(x_train, y_train, x_test, y_test):
+   start = time.time()
    model = cnn_model()
-   
+   lr = 0.01
+   sgd = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
+   model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
-# preprocess data
-start = time.time()
-try:
-    with  h5py.File('X.h5') as hf: 
-        X, Y = hf['imgs'][:], hf['labels'][:]
-    print("Loaded images from X.h5")
-    
-except (IOError,OSError, KeyError):  
-    print("Error in reading X.h5. Processing all images...")
-    root_dir = 'GTSRB/Final_Training/Images/'
-    imgs = []
-    labels = []
+   batch_size = 32
+   nb_epoch = 1
 
-    all_img_paths = glob.glob(os.path.join(root_dir, '*/*.ppm'))
-    np.random.shuffle(all_img_paths)
-    for img_path in all_img_paths:
-        try:
-            img = preprocess_img(io.imread(img_path))
-            label = get_class(img_path)
-            imgs.append(img)
-            labels.append(label)
+   model.fit(X, Y, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, shuffle=True,
+             callbacks=[LearningRateScheduler(lr_schedule), ModelCheckpoint('model.h5', save_best_only=True)])
 
-            if len(imgs)%1000 == 0: 
-                print("Processed {}/{}".format(len(imgs), len(all_img_paths)))
-        except (IOError, OSError):
-            print('missed', img_path)
-            pass
+   stop = time.time()
+   print('\n\n time for training model is {}\n\n'.format(stop - start))
 
-    X = np.array(imgs, dtype='float32')
-    Y = np.eye(NUM_CLASSES, dtype='uint8')[labels]
+   y_pred = model.predict_classes(X_test)
+   acc = np.sum(y_pred == y_test)/np.size(y_pred)
+   print("Test accuracy = {}".format(acc))
 
-    with h5py.File('X.h5','w') as hf:
-        hf.create_dataset('imgs', data=X)
-        hf.create_dataset('labels', data=Y)
 
-model = cnn_model()
+def get_train_data():
+    # preprocess data
+    start = time.time()
+    try:
+        with  h5py.File('X.h5') as hf:
+            X, Y = hf['imgs'][:], hf['labels'][:]
+        print("Loaded images from X.h5")
 
-stop = time.time()
-print('\n\n### time for preprocess data is {}\n\n'.format(stop - start))
+    except (IOError,OSError, KeyError):
+        print("Error in reading X.h5. Processing all images...")
+        root_dir = 'GTSRB/Final_Training/Images/'
+        imgs = []
+        labels = []
 
-#train data
-start = time.time()
-lr = 0.01
-sgd = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
-model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+        all_img_paths = glob.glob(os.path.join(root_dir, '*/*.ppm'))
+        np.random.shuffle(all_img_paths)
+        for img_path in all_img_paths:
+            try:
+                img = preprocess_img(io.imread(img_path))
+                label = get_class(img_path)
+                imgs.append(img)
+                labels.append(label)
 
-batch_size = 32
-nb_epoch = 1
+                if len(imgs)%1000 == 0:
+                    print("Processed {}/{}".format(len(imgs), len(all_img_paths)))
+            except (IOError, OSError):
+                print('missed', img_path)
+                pass
 
-model.fit(X, Y, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, shuffle=True,
-          callbacks=[LearningRateScheduler(lr_schedule), ModelCheckpoint('model.h5', save_best_only=True)])
+        x_train = np.array(imgs, dtype='float32')
+        y_train = np.eye(NUM_CLASSES, dtype='uint8')[labels]
 
-stop = time.time()
-print('\n\n time for training model is {}\n\n'.format(stop - start))
+        with h5py.File('X.h5','w') as hf:
+            hf.create_dataset('imgs', data=X)
+            hf.create_dataset('labels', data=Y)
+    stop = time.time()
+    print('\n\n### time for preprocess data is {}\n\n'.format(stop - start))
 
-best_run, best_model = optim.minimize(model=)
+    return x_train, y_train
 
-# test data
-test = pd.read_csv('GT-final_test.csv', sep=',',error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
+def get_test_data():
+    # test data
+    test = pd.read_csv('GT-final_test.csv', sep=',',error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
 
-try:
-
-    X_test = []
+    x_test = []
     y_test = []
 
     for file_name, class_id  in zip(list(test['Filename']), list(test['ClassId'])):
         img_path = os.path.join('GTSRB/Final_Test/Images/', file_name + '.ppm')
-        X_test.append(preprocess_img(io.imread(img_path)))
+        x_test.append(preprocess_img(io.imread(img_path)))
         y_test.append(class_id)
-    
-    X_test = np.array(X_test)
+
+    x_test = np.array(X_test)
     y_test = np.array(y_test)
 
-    y_pred = model.predict_classes(X_test)
-    acc = np.sum(y_pred == y_test)/np.size(y_pred)
-    print("Test accuracy = {}".format(acc))
-finally:
-    print('FINISHED')
+    return x_test, y_test
 
+x_train, y_train = get_train_data()
+x_test, y_test = get_test_data()
+
+data = x_train, y_train, x_test, y_test
+best_run, best_model = optim.minimize(model=create_model,
+                                        data=data,
+                                        algo=tpe.suggest,
+                                        max_evals=10,
+                                        trials=Trials())
