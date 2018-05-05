@@ -100,8 +100,7 @@ def create_model(x_train, y_train, x_test, y_test):
    print("Test accuracy = {}".format(acc))
 
 
-def get_train_data():
-    # preprocess data
+def get_data():
     start = time.time()
     try:
         with  h5py.File('X.h5') as hf:
@@ -138,10 +137,6 @@ def get_train_data():
     stop = time.time()
     print('\n\n### time for preprocess data is {}\n\n'.format(stop - start))
 
-    return x_train, y_train
-
-def get_test_data():
-    # test data
     test = pd.read_csv('GT-final_test.csv', sep=',',error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
 
     x_test = []
@@ -154,12 +149,6 @@ def get_test_data():
 
     x_test = np.array(x_test)
     y_test = np.array(y_test)
-
-    return x_test, y_test
-
-def get_data():
-    x_train, y_train = get_train_data()
-    x_test, y_test = get_test_data()
 
     return x_train, y_train, x_test, y_test
 
