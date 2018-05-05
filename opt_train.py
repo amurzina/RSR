@@ -1,6 +1,8 @@
 from hyperas.distributions import uniform
 from hyperas import optim
 
+from hyperopt import tpe, Trials
+
 from matplotlib import *
 
 import numpy as np
