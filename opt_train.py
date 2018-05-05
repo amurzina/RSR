@@ -103,7 +103,7 @@ def get_train_data():
     start = time.time()
     try:
         with  h5py.File('X.h5') as hf:
-            X, Y = hf['imgs'][:], hf['labels'][:]
+            x_train, y_train = hf['imgs'][:], hf['labels'][:]
         print("Loaded images from X.h5")
 
     except (IOError,OSError, KeyError):
