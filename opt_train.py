@@ -1,8 +1,6 @@
 from hyperas.distributions import uniform
 from hyperas import optim
 
-from hyperopt import tpe, Trials
-
 from matplotlib import *
 
 import numpy as np
@@ -157,12 +155,14 @@ def get_test_data():
 
     return x_test, y_test
 
-x_train, y_train = get_train_data()
-x_test, y_test = get_test_data()
+def get_data():
+    x_train, y_train = get_train_data()
+    x_test, y_test = get_test_data()
 
-data = x_train, y_train, x_test, y_test
+    return x_train, y_train, x_test, y_test
+
 best_run, best_model = optim.minimize(model=create_model,
-                                        data=data,
+                                        data=get_data,
                                         algo=tpe.suggest,
                                         max_evals=10,
                                         trials=Trials())
