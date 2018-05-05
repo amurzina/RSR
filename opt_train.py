@@ -10,6 +10,7 @@ import pandas as pd
 from skimage import io, color, exposure, transform
 
 import gc
+import os
 import glob
 import h5py
 import time
@@ -26,57 +27,57 @@ from keras import backend as K
 
 K.set_image_data_format('channels_first')
 
+
 def cnn_model():
     model = Sequential()
 
     model.add(Conv2D(32, (3, 3), padding='same', input_shape=(3, 48, 48), activation='relu'))
     model.add(Conv2D(32, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout({{uniform(0,1)}}))
+    model.add(Dropout({{uniform(0, 1)}}))
 
     model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
     model.add(Conv2D(64, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout({{uniform(0,1)}}))
+    model.add(Dropout({{uniform(0, 1)}}))
 
     model.add(Conv2D(128, (3, 3), padding='same', activation='relu'))
     model.add(Conv2D(128, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout({{uniform(0,1)}}))
+    model.add(Dropout({{uniform(0, 1)}}))
 
     model.add(Flatten())
     model.add(Dense(512, activation='relu'))
-    model.add(Dropout({{uniform(0,1)}}))
+    model.add(Dropout({{uniform(0, 1)}}))
     model.add(Dense(43, activation='softmax'))
     return model
 
-def create_model(x_train, y_train, x_test, y_test):
 
+def create_model(x_train, y_train, x_test, y_test):
     def lr_schedule(epoch):
         return lr * (0.1 ** int(epoch / 10))
 
-   start = time.time()
-   model = cnn_model()
-   lr = 0.01
-   sgd = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
-   model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+    start = time.time()
+    model = cnn_model()
+    lr = 0.01
+    sgd = SGD(lr=lr, decay=1e-6, momentum=0.9, nesterov=True)
+    model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
-   batch_size = 32
-   nb_epoch = 1
+    batch_size = 32
+    nb_epoch = 1
 
-   model.fit(X, Y, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, shuffle=True,
-             callbacks=[LearningRateScheduler(lr_schedule), ModelCheckpoint('model.h5', save_best_only=True)])
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=nb_epoch, validation_split=0.2, shuffle=True,
+              callbacks=[LearningRateScheduler(lr_schedule), ModelCheckpoint('model.h5', save_best_only=True)])
 
-   stop = time.time()
-   print('\n\n time for training model is {}\n\n'.format(stop - start))
+    stop = time.time()
+    print('\n\n time for training model is {}\n\n'.format(stop - start))
 
-   y_pred = model.predict_classes(X_test)
-   acc = np.sum(y_pred == y_test)/np.size(y_pred)
-   print("Test accuracy = {}".format(acc))
+    y_pred = model.predict_classes(x_test)
+    acc = np.sum(y_pred == y_test) / np.size(y_pred)
+    print("Test accuracy = {}".format(acc))
 
 
 def get_data():
-
     def preprocess_img(img):
         hsv = color.rgb2hsv(img)
         hsv[:, :, 2] = exposure.equalize_hist(hsv[:, :, 2])
@@ -102,7 +103,7 @@ def get_data():
             x_train, y_train = hf['imgs'][:], hf['labels'][:]
         print("Loaded images from X.h5")
 
-    except (IOError,OSError, KeyError):
+    except (IOError, OSError, KeyError):
         print("Error in reading X.h5. Processing all images...")
         root_dir = 'GTSRB/Final_Training/Images/'
         imgs = []
@@ -117,7 +118,7 @@ def get_data():
                 imgs.append(img)
                 labels.append(label)
 
-                if len(imgs)%1000 == 0:
+                if len(imgs) % 1000 == 0:
                     print("Processed {}/{}".format(len(imgs), len(all_img_paths)))
             except (IOError, OSError):
                 print('missed', img_path)
@@ -126,18 +127,19 @@ def get_data():
         x_train = np.array(imgs, dtype='float32')
         y_train = np.eye(43, dtype='uint8')[labels]
 
-        with h5py.File('X.h5','w') as hf:
+        with h5py.File('X.h5', 'w') as hf:
             hf.create_dataset('imgs', data=X)
             hf.create_dataset('labels', data=Y)
     stop = time.time()
     print('\n\n### time for preprocess data is {}\n\n'.format(stop - start))
 
-    test = pd.read_csv('GT-final_test.csv', sep=',',error_bad_lines=False, names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
+    test = pd.read_csv('GT-final_test.csv', sep=',', error_bad_lines=False,
+                       names=['Filename', '1', '2', '3', '4', '5', '6', 'ClassId'], dtype={'Filename': str})
 
     x_test = []
     y_test = []
 
-    for file_name, class_id  in zip(list(test['Filename']), list(test['ClassId'])):
+    for file_name, class_id in zip(list(test['Filename']), list(test['ClassId'])):
         img_path = os.path.join('GTSRB/Final_Test/Images/', file_name + '.ppm')
         x_test.append(preprocess_img(io.imread(img_path)))
         y_test.append(class_id)
@@ -147,8 +149,11 @@ def get_data():
 
     return x_train, y_train, x_test, y_test
 
+
 best_run, best_model = optim.minimize(model=create_model,
-                                        data=get_data,
-                                        algo=tpe.suggest,
-                                        max_evals=10,
-                                        trials=Trials())
+                                      data=get_data,
+                                      algo=tpe.suggest,
+                                      max_evals=10,
+                                      trials=Trials())
+
+print(best_run)
